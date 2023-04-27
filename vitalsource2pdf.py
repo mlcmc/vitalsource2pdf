@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import tempfile
 import time
+import pickle
 from pathlib import Path
 
 import img2pdf
@@ -49,6 +50,9 @@ ebook_files.mkdir(exist_ok=True, parents=True)
 book_info = {}
 non_number_pages = 0
 
+libraryLoginPage = 'https://bookshelf.vitalsource.com'
+libraryMosaic = 'bookshelf.vitalsource.com'
+libraryJigsaw = 'vitalsource.com'
 
 def get_num_pages():
     while True:
@@ -68,7 +72,7 @@ def get_num_pages():
 
 
 def load_book_page(page_id):
-    driver.get(f'https://bookshelf.vitalsource.com/reader/books/{args.isbn}/pageid/{page_id}')
+    driver.get(f'https://{libraryMosaic}/reader/books/{args.isbn}/pageid/{page_id}')
     get_num_pages()  # Wait for the page to load
     # Wait for the page loader animation to disappear
     while len(driver.find_elements(By.CLASS_NAME, "sc-AjmGg dDNaMw")):
@@ -81,18 +85,22 @@ if not args.skip_scrape or args.only_scrape_metadata:
         chrome_options.add_argument('--disable-web-security')
         print('DISABLED WEB SECURITY!')
     chrome_options.add_argument('--disable-http2')  # VitalSource's shit HTTP2 server is really slow and will sometimes send bad data.
+    chrome_options.add_argument('--enable-features=UseOzonePlatform')
+    chrome_options.add_argument('--ozone-platform=wayland')
     if args.chrome_exe:
         chrome_options.binary_location = args.chrome_exe  # '/usr/bin/google-chrome'
     seleniumwire_options = {
         'disable_encoding': True  # Ask the server not to compress the response
     }
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), chrome_options=chrome_options, seleniumwire_options=seleniumwire_options)
-
-    driver.get(f'https://bookshelf.vitalsource.com')
+    
+    driver.get(f'{libraryLoginPage}')
     input('Press ENTER once logged in...')
-
+    
     driver.maximize_window()
     page_num = args.start_page
+    
+    # Load first asked page (or first one whatsoever)
     load_book_page(page_num)
 
     # Get book info
@@ -101,7 +109,7 @@ if not args.skip_scrape or args.only_scrape_metadata:
     failed = True
     for i in range(5):
         for request in driver.requests:
-            if request.url == f'https://jigsaw.vitalsource.com/books/{args.isbn}/pages':
+            if request.url == f'https://jigsaw.{libraryJigsaw}/books/{args.isbn}/pages':
                 wait = 0
                 while not request.response and wait < 30:
                     time.sleep(1)
@@ -110,7 +118,7 @@ if not args.skip_scrape or args.only_scrape_metadata:
                     print('Failed to get pages information.')
                 else:
                     book_info['pages'] = json.loads(request.response.body.decode())
-            elif request.url == f'https://jigsaw.vitalsource.com/info/books.json?isbns={args.isbn}':
+            elif request.url == f'https://jigsaw.{libraryJigsaw}/info/books.json?isbns={args.isbn}':
                 wait = 0
                 while not request.response and wait < 30:
                     time.sleep(1)
@@ -119,7 +127,7 @@ if not args.skip_scrape or args.only_scrape_metadata:
                     print('Failed to get book information.')
                 else:
                     book_info['book'] = json.loads(request.response.body.decode())
-            elif request.url == f'https://jigsaw.vitalsource.com/books/{args.isbn}/toc':
+            elif request.url == f'https://jigsaw.{libraryJigsaw}/books/{args.isbn}/toc':
                 wait = 0
                 while not request.response and wait < 30:
                     time.sleep(1)
@@ -167,7 +175,7 @@ if not args.skip_scrape or args.only_scrape_metadata:
                 base_url = None
                 for page_retry in range(3):  # retry the page max this many times
                     for request in driver.requests:
-                        if request.url.startswith(f'https://jigsaw.vitalsource.com/books/{args.isbn}/images/'):
+                        if request.url.startswith(f'https://jigsaw.{libraryJigsaw}/books/{args.isbn}/images/'):
                             base_url = request.url.split('/')
                             del base_url[-1]
                             base_url = '/'.join(base_url)
@@ -225,7 +233,7 @@ if not args.skip_scrape or args.only_scrape_metadata:
                 base_url = None
                 for page_retry in range(3):  # retry the page max this many times
                     for request in driver.requests:
-                        if request.url.startswith(f'https://jigsaw.vitalsource.com/books/{args.isbn}/images/'):
+                        if request.url.startswith(f'https://jigsaw.{libraryJigsaw}/books/{args.isbn}/images/'):
                             base_url = request.url.split('/')
                             del base_url[-1]
                             base_url = '/'.join(base_url)
@@ -244,7 +252,16 @@ if not args.skip_scrape or args.only_scrape_metadata:
                 bar.update(1)
             bar.close()
 
-        time.sleep(1)
+            time.sleep(1)
+
+            with open(f'{args.output}/{args.isbn}-page_urls.txt', 'wb') as page_urls_file:
+                pickle.dump(page_urls, page_urls_file)
+        else:
+            with open(f'{args.output}/{args.isbn}-page_urls.txt', 'rb') as page_urls_file:
+                page_urls = pickle.load(page_urls_file)
+
+        #######################################
+        # Now download the images
         print('All pages scraped! Now downloading images...')
 
         bar = tqdm(total=len(page_urls))
@@ -257,19 +274,31 @@ if not args.skip_scrape or args.only_scrape_metadata:
                 time.sleep(args.delay / 2)
                 retry_delay = 5
                 img_data = None
-                for page_retry in range(3):  # retry the page max this many times
-                    largest_size = 0
-                    for find_img_retry in range(3):
-                        for request in driver.requests:
-                            if request.url.startswith(f'https://jigsaw.vitalsource.com/books/{args.isbn}/images/'):
-                                img_data = request.response.body
-                                break
+                failed = True
+                for request in driver.requests:
+                    if request.url.startswith(f'https://jigsaw.{libraryJigsaw}/books/{args.isbn}/images/'):
+                        if (request.response and request.response.status_code == 428):
+                            print('reCAPTCHA required.')
+                            input('Press ENTER after solving it.')
+                            time.sleep(1)
+                        else:
+                            img_data = request.response.body
+                            failed = False
+                            break
+                if failed:
+                    continue
                 dl_file = ebook_files / f'{page}.jpg'
                 if img_data:
                     with open(dl_file, 'wb') as file:
                         file.write(img_data)
                     # Re-save the image to make sure it's in the correct format
-                    img = Image.open(dl_file)
+                    try:
+                        img = Image.open(dl_file)
+                    except:
+                        # maybe file obtained is not an image (reCAPTCHA error?)
+                        time.sleep(30)
+                        load_book_page(0)
+                        continue
                     if img.width != 2000:
                         bar.write(f'Image too small at {img.width}px wide, retrying: {base_url}')
                         driver.get('https://google.com')
