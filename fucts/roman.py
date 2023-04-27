@@ -7,6 +7,8 @@ def roman_sort_with_ints(arr):
     roman_dict = {'I': 1, 'V': 5, 'X': 10, 'L': 50, 'C': 100, 'D': 500, 'M': 1000}
 
     def roman_to_int(num):
+        if num == "Capa" or num == "Frontcover":
+            return 0
         if isinstance(num, str):
             num = num.upper()
         result = 0
