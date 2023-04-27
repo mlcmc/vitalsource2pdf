@@ -50,7 +50,9 @@ def move_integers_to_end(lst):
 def move_romans_to_front(arr):
     arr_sorted = sorted(arr, key=lambda x: isinstance(x, int))
 
-    if arr_sorted.index(0):
-        arr_sorted.insert(0, arr_sorted.pop(arr_sorted.index(0)))
-
+    try:
+        if arr_sorted.index(0):
+            arr_sorted.insert(0, arr_sorted.pop(arr_sorted.index(0)))
+    except:
+        pass
     return arr_sorted
