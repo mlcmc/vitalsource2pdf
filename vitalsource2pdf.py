@@ -30,7 +30,7 @@ parser.add_argument('--isbn', required=True)
 parser.add_argument('--delay', default=1, type=int, help='Delay between pages to let them load in seconds.')
 parser.add_argument('--pages', default=None, type=int, help='Override how many pages to save.')  # TODO
 parser.add_argument('--start-page', default=0, type=int, help='Start on this page. Pages start at zero and include any non-numbered pages.')
-parser.add_argument('--end-page', default=-1, type=int, help='End on this page.')
+parser.add_argument('--end-page', default=-1, type=int, help='End on this page.') # TODO
 parser.add_argument('--chrome-exe', default=None, type=str, help='Path to the Chrome executable. Leave blank to auto-detect.')
 parser.add_argument('--disable-web-security', action='store_true', help="If pages aren't loading then you can try disabling CORS protections.")
 parser.add_argument('--language', default='eng', help='OCR language. Default: "eng"')
