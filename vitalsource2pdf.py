@@ -150,6 +150,8 @@ if not args.skip_scrape or args.only_scrape_metadata:
         driver.close()
         del driver
 
+    #######################################
+    # Finished scraping metadata, now scrape pages and images
     if not args.only_scrape_metadata:
         _, total_pages = get_num_pages()
 
@@ -320,16 +322,16 @@ if not args.skip_scrape or args.only_scrape_metadata:
 else:
     print('Page scrape skipped...')
 
+#######################################
 # Sometimes the book skips a page. Add a blank page if thats the case.
 print('Checking for blank pages...')
-
 pagesImagesFolder = Path(ebook_files)
 existing_page_files = move_romans_to_front(roman_sort_with_ints([try_convert_int(str(x.stem)) for x in list(pagesImagesFolder.iterdir())]))
 if non_number_pages == 0:  # We might not have scraped so this number needs to be updated.
     for item in existing_page_files:
         if isinstance(try_convert_int(item), str):
             non_number_pages += 1
-for page in tqdm(iterable=existing_page_files):
+"""for page in tqdm(iterable=existing_page_files):
     page_i = try_convert_int(page)
     if isinstance(page_i, int) and page_i > 0:
         page_i += non_number_pages
@@ -338,9 +340,11 @@ for page in tqdm(iterable=existing_page_files):
             last_page_i += non_number_pages
             if last_page_i != page_i - 1:
                 img = Image.new('RGB', (2000, 2588), (255, 255, 255))
-                #img.save(ebook_files / f'{int(page) - 1}.jpg')
-                #tqdm.write(f'Created blank image for page {int(page) - 1}.')
+                img.save(ebook_files / f'{int(page) - 1}.jpg')
+                tqdm.write(f'Created blank image for page {int(page) - 1}.')"""
 
+################################
+# Build PDF from images
 print('Building PDF...')
 raw_pdf_file = args.output / f'{args.isbn} RAW.pdf'
 existing_page_files = move_romans_to_front(roman_sort_with_ints([try_convert_int(str(x.stem)) for x in list(pagesImagesFolder.iterdir())]))
@@ -349,6 +353,7 @@ pdf = img2pdf.convert(page_files)
 with open(raw_pdf_file, 'wb') as f:
     f.write(pdf)
 
+# Get info (what we've got)
 if 'book' in book_info.keys() and 'books' in book_info['book'].keys() and len(book_info['book']['books']):
     title = book_info['book']['books'][0]['title']
     author = book_info['book']['books'][0]['author']
@@ -356,6 +361,8 @@ else:
     title = args.isbn
     author = 'Unknown'
 
+#######################################
+# OCR subroutines
 if not args.skip_ocr:
     print('Running OCR...')
     ocr_in = raw_pdf_file
@@ -365,7 +372,8 @@ else:
     ebook_output_ocr = args.output / f'{args.isbn}.pdf'
     print('Skipping OCR...')
 
-# Add metadata
+#######################################
+# Add metadata (what we have)
 print('Adding metadata...')
 file_in = open(raw_pdf_file, 'rb')
 pdf_reader = PdfReader(file_in)
