@@ -27,7 +27,7 @@ from fucts.roman import move_romans_to_front, roman_sort_with_ints, try_convert_
 parser = argparse.ArgumentParser()
 parser.add_argument('--output', default='./VitalSource/')
 parser.add_argument('--isbn', required=True)
-parser.add_argument('--delay', default=2, type=int, help='Delay between pages to let them load in seconds.')
+parser.add_argument('--delay', default=1, type=int, help='Delay between pages to let them load in seconds.')
 parser.add_argument('--pages', default=None, type=int, help='Override how many pages to save.')  # TODO
 parser.add_argument('--start-page', default=0, type=int, help='Start on this page. Pages start at zero and include any non-numbered pages.')
 parser.add_argument('--end-page', default=-1, type=int, help='End on this page.')
