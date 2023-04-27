@@ -2,6 +2,7 @@ venv/
 .idea/
 geckodriver
 VitalSource/
+vitalsource2pdf.py.bak
 
 # ---> Python
 # Byte-compiled / optimized / DLL files
