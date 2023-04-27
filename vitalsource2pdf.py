@@ -325,7 +325,6 @@ print('Checking for blank pages...')
 
 pagesImagesFolder = Path(ebook_files)
 existing_page_files = move_romans_to_front(roman_sort_with_ints([try_convert_int(str(x.stem)) for x in list(pagesImagesFolder.iterdir())]))
-print(*existing_page_files)
 if non_number_pages == 0:  # We might not have scraped so this number needs to be updated.
     for item in existing_page_files:
         if isinstance(try_convert_int(item), str):
