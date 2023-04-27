@@ -53,7 +53,7 @@ non_number_pages = 0
 def get_num_pages():
     while True:
         try:
-            total = int(driver.execute_script('return document.getElementsByClassName("sc-knKHOI gGldJU")[0].innerHTML').strip().split('/')[-1].strip())
+            total = int(driver.execute_script('return document.getElementsByClassName("sc-jNHqnW bMJtOX")[0].innerHTML').strip().split('/')[-1].strip())
             try:
                 # Get the value of the page number textbox
                 current_page = driver.execute_script('return document.getElementsByClassName("InputControl__input-fbzQBk hDtUvs TextField__InputControl-iza-dmV iISUBf")[0].value')
@@ -150,104 +150,99 @@ if not args.skip_scrape or args.only_scrape_metadata:
         total_pages = 99999999999999999 if args.start_page > 0 else total_pages
 
         print('Total number of pages:', total_pages)
-        print('Scraping pages...')
 
-        page_urls = set()
-        failed_pages = set()
-        small_pages_redo = set()
-        bar = tqdm(total=total_pages)
-        bar.update(page_num)
-        while page_num < total_pages + 1:
-            time.sleep(args.delay)
-            retry_delay = 5
-            base_url = None
-            for page_retry in range(3):  # retry the page max this many times
-                largest_size = 0
-                for find_img_retry in range(3):
+        #######################################
+        # Scrape images URLs from pages
+        if not os.path.exists(f'{args.output}/{args.isbn}-page_urls.txt'):
+            print('Scraping pages...')
+
+            page_urls = set()
+            failed_pages = set()
+            bar = tqdm(total=total_pages)
+            bar.update(page_num)
+            while page_num < total_pages + 1:
+                # There is no need to get the initial page since the requests are already loaded for this page
+                time.sleep(args.delay) # time to load the requests from the next page
+                retry_delay = 5
+                base_url = None
+                for page_retry in range(3):  # retry the page max this many times
                     for request in driver.requests:
                         if request.url.startswith(f'https://jigsaw.vitalsource.com/books/{args.isbn}/images/'):
                             base_url = request.url.split('/')
                             del base_url[-1]
                             base_url = '/'.join(base_url)
-                    time.sleep(1)
-                if base_url:
-                    break
-                bar.write(f'Could not find a matching image for page {page_num}, sleeping {retry_delay}s...')
-                time.sleep(retry_delay)
-                retry_delay += 5
-
-            page, _ = get_num_pages()
-
-            if not base_url:
-                bar.write(f'Failed to get a URL for page {page_num}, retrying later.')
-                failed_pages.add(page_num)
-            else:
-                page_urls.add((page, base_url))
-                bar.write(base_url)
-                # If this isn't a numbered page we will need to increment the page count
-                try:
-                    int(page)
-                except ValueError:
-                    total_pages += 1
-                    non_number_pages += 1
-                    bar.write(f'Non-number page {page}, increasing page count by 1 to: {total_pages}')
-                    bar.total = total_pages
-                    bar.refresh()
-
-            if page_num == args.end_page:
-                bar.write(f'Exiting on page {page_num}.')
-                break
-
-            # On the first page the back arrow is disabled and will trigger this
-            if isinstance(page_num, int) and page_num > 0:
-                try:
-                    # If a page forward/backwards button is disabled
-                    if driver.execute_script(f'return document.getElementsByClassName("IconButton__button-bQttMI gHMmeA sc-oXPCX mwNce")[0].disabled'):
-                        bar.write(f'Book completed, exiting.')
+                    if base_url:
                         break
-                except selenium.common.exceptions.JavascriptException:
-                    pass
+                    bar.write(f'Could not find a matching image for page {page_num}, sleeping {retry_delay}s...')
+                    time.sleep(retry_delay)
+                    retry_delay += 5
+                if not base_url:
+                    bar.write(f'Failed to get a URL for page {page_num}, retrying later.')
+                    failed_pages.add(page_num)
+                else:
+                    page, _ = get_num_pages()
+                    page_urls.add((page, base_url)) # page = not necessarily numbered
+                    try: # If this isn't a numbered page we will need to increment the page count
+                        int(page)
+                    except ValueError:
+                        total_pages += 1
+                        non_number_pages += 1
+                        bar.write(f'Non-number page {page}, increasing page count by 1 to: {total_pages}')
+                        bar.total = total_pages
+                        bar.refresh()
 
-            # Move to the next page
-            del driver.requests
-            actions = ActionChains(driver)
-            actions.send_keys(Keys.RIGHT)
-            actions.perform()
-            bar.update()
-            page_num += 1
-        bar.close()
+                if page_num == args.end_page:
+                    bar.write(f'Exiting on page {page_num}.')
+                    break
 
-        print('Re-doing failed pages...')
-        bar = tqdm(total=len(failed_pages))
-        for page in failed_pages:
-            load_book_page(page)
-            time.sleep(args.delay)
-            retry_delay = 5
-            base_url = None
-            for page_retry in range(3):  # retry the page max this many times
-                largest_size = 0
-                for find_img_retry in range(3):
+                # On the first page the back arrow is disabled and will trigger this
+                if isinstance(page_num, int) and page_num > 0:
+                    try:
+                        # If a page forward/backwards button is disabled
+                        if driver.execute_script(f'return document.getElementsByClassName("IconButton__button-bQttMI gHMmeA sc-ihINtW gAHnbi")[0].disabled'):
+                            bar.write(f'Book completed, exiting.')
+                            break
+                    except selenium.common.exceptions.JavascriptException:
+                        pass
+
+                # Move to the next page
+                del driver.requests
+                actions = ActionChains(driver)
+                actions.send_keys(Keys.RIGHT)
+                actions.perform()
+                bar.update()
+                page_num += 1
+            bar.close()
+
+            #######################################
+            # New try to scrape images URLs from pages 
+            print('Re-doing failed pages...')
+            bar = tqdm(total=len(failed_pages))
+            for page in failed_pages:
+                load_book_page(page)
+                time.sleep(args.delay)
+                retry_delay = 5
+                base_url = None
+                for page_retry in range(3):  # retry the page max this many times
                     for request in driver.requests:
                         if request.url.startswith(f'https://jigsaw.vitalsource.com/books/{args.isbn}/images/'):
                             base_url = request.url.split('/')
                             del base_url[-1]
                             base_url = '/'.join(base_url)
-                    time.sleep(1)
-                if base_url:
-                    break
-                bar.write(f'Could not find a matching image for page {page_num}, sleeping {retry_delay}s...')
-                time.sleep(retry_delay)
-                retry_delay += 5
-            page, _ = get_num_pages()
-            if not base_url:
-                bar.write(f'Failed to get a URL for page {page_num}, retrying later.')
-                failed_pages.add(page_num)
-            else:
-                page_urls.add((page, base_url))
-                bar.write(base_url)
-                del driver.requests
-            bar.update(1)
-        bar.close()
+                    if base_url:
+                        break
+                    bar.write(f'Could not find a matching image for page {page_num}, sleeping {retry_delay}s...')
+                    time.sleep(retry_delay)
+                    retry_delay += 5
+                page, _ = get_num_pages()
+                if not base_url:
+                    bar.write(f'Failed to get a URL for page {page_num}, retrying later.')
+                    failed_pages.add(page_num)
+                else:
+                    page_urls.add((page, base_url))
+                    del driver.requests
+                bar.update(1)
+            bar.close()
 
         time.sleep(1)
         print('All pages scraped! Now downloading images...')
@@ -298,7 +293,10 @@ else:
 
 # Sometimes the book skips a page. Add a blank page if thats the case.
 print('Checking for blank pages...')
-existing_page_files = move_romans_to_front(roman_sort_with_ints([try_convert_int(str(x.stem)) for x in list(ebook_files.iterdir())]))
+
+pagesImagesFolder = Path(ebook_files)
+existing_page_files = move_romans_to_front(roman_sort_with_ints([try_convert_int(str(x.stem)) for x in list(pagesImagesFolder.iterdir())]))
+print(*existing_page_files)
 if non_number_pages == 0:  # We might not have scraped so this number needs to be updated.
     for item in existing_page_files:
         if isinstance(try_convert_int(item), str):
@@ -307,17 +305,17 @@ for page in tqdm(iterable=existing_page_files):
     page_i = try_convert_int(page)
     if isinstance(page_i, int) and page_i > 0:
         page_i += non_number_pages
-        last_page_i = try_convert_int(existing_page_files[page_i - 1])
+        last_page_i = try_convert_int(existing_page_files[len(existing_page_files) - 1]) # problem: maybe there isnt the nth element
         if isinstance(last_page_i, int):
-            last_page_i = last_page_i + non_number_pages
+            last_page_i += non_number_pages
             if last_page_i != page_i - 1:
                 img = Image.new('RGB', (2000, 2588), (255, 255, 255))
-                img.save(ebook_files / f'{int(page) - 1}.jpg')
-                tqdm.write(f'Created blank image for page {int(page) - 1}.')
+                #img.save(ebook_files / f'{int(page) - 1}.jpg')
+                #tqdm.write(f'Created blank image for page {int(page) - 1}.')
 
 print('Building PDF...')
 raw_pdf_file = args.output / f'{args.isbn} RAW.pdf'
-existing_page_files = move_romans_to_front(roman_sort_with_ints([try_convert_int(str(x.stem)) for x in list(ebook_files.iterdir())]))
+existing_page_files = move_romans_to_front(roman_sort_with_ints([try_convert_int(str(x.stem)) for x in list(pagesImagesFolder.iterdir())]))
 page_files = [str(ebook_files / f'{x}.jpg') for x in existing_page_files]
 pdf = img2pdf.convert(page_files)
 with open(raw_pdf_file, 'wb') as f:
@@ -397,7 +395,10 @@ if romans_end > 0:
 else:
     shutil.move(tmpfile, args.output / f'{title}.pdf')
 
-os.remove(tmpfile)
+try:
+    os.remove(tmpfile)
+except:
+    pass
 
 if args.compress:
     print('Compressing PDF...')
