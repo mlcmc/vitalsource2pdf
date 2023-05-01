@@ -23,7 +23,7 @@ from seleniumwire import webdriver
 from tqdm import tqdm
 from webdriver_manager.chrome import ChromeDriverManager
 
-from fucts.roman import move_romans_to_front, roman_sort_with_ints, try_convert_int
+from fucts.roman import move_romans_to_front, roman_sort_with_ints, try_convert_int, move_front_cover_to_front
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--output', default='./VitalSource/')

@@ -56,3 +56,9 @@ def move_romans_to_front(arr):
     except:
         pass
     return arr_sorted
+
+def move_front_cover_to_front(arr):
+    if arr.index('Capa'):
+        return arr.insert(0, arr.pop(arr.index('Capa')))
+    else:
+        return arr
