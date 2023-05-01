@@ -73,10 +73,10 @@ def get_num_pages():
 
 def load_book_page(page_id):
     driver.get(f'https://{libraryMosaic}/reader/books/{args.isbn}/pageid/{page_id}')
-    get_num_pages()  # Wait for the page to load
     # Wait for the page loader animation to disappear
     while len(driver.find_elements(By.CLASS_NAME, "sc-AjmGg dDNaMw")):
         time.sleep(1)
+    get_num_pages()  # Wait for the page to load
 
 
 if not args.skip_scrape or args.only_scrape_metadata:
@@ -325,17 +325,19 @@ else:
 #######################################
 # Sometimes the book skips a page. Add a blank page if thats the case.
 print('Checking for blank pages...')
-pagesImagesFolder = Path(ebook_files)
-existing_page_files = move_romans_to_front(roman_sort_with_ints([try_convert_int(str(x.stem)) for x in list(pagesImagesFolder.iterdir())]))
+
+pageFilesArr = move_romans_to_front(roman_sort_with_ints([try_convert_int(str(x.stem)) for x in list(ebook_files.iterdir())]))
+
 if non_number_pages == 0:  # We might not have scraped so this number needs to be updated.
-    for item in existing_page_files:
+    for item in pageFilesArr:
         if isinstance(try_convert_int(item), str):
             non_number_pages += 1
-"""for page in tqdm(iterable=existing_page_files):
+
+"""for page in tqdm(iterable=pageFilesArr):
     page_i = try_convert_int(page)
     if isinstance(page_i, int) and page_i > 0:
         page_i += non_number_pages
-        last_page_i = try_convert_int(existing_page_files[len(existing_page_files) - 1]) # problem: maybe there isnt the nth element
+        last_page_i = try_convert_int(pageFilesArr[len(pageFilesArr) - 1]) # problem: maybe there isnt the nth element
         if isinstance(last_page_i, int):
             last_page_i += non_number_pages
             if last_page_i != page_i - 1:
@@ -346,12 +348,13 @@ if non_number_pages == 0:  # We might not have scraped so this number needs to b
 ################################
 # Build PDF from images
 print('Building PDF...')
-raw_pdf_file = args.output / f'{args.isbn} RAW.pdf'
-existing_page_files = move_romans_to_front(roman_sort_with_ints([try_convert_int(str(x.stem)) for x in list(pagesImagesFolder.iterdir())]))
-page_files = [str(ebook_files / f'{x}.jpg') for x in existing_page_files]
-pdf = img2pdf.convert(page_files)
-with open(raw_pdf_file, 'wb') as f:
-    f.write(pdf)
+
+pageFilesArrWithFolder = [str(ebook_files / f'{x}.jpg') for x in pageFilesArr]
+pdfRawBytes = img2pdf.convert(pageFilesArrWithFolder)
+
+pdfRawFilePath = args.output / f'{args.isbn} RAW.pdf'
+with open(pdfRawFilePath, 'wb') as f:
+    f.write(pdfRawBytes)
 
 # Get info (what we've got)
 if 'book' in book_info.keys() and 'books' in book_info['book'].keys() and len(book_info['book']['books']):
@@ -365,9 +368,8 @@ else:
 # OCR subroutines
 if not args.skip_ocr:
     print('Running OCR...')
-    ocr_in = raw_pdf_file
-    _, raw_pdf_file = tempfile.mkstemp()
-    subprocess.run(f'ocrmypdf -l {args.language} --title "{title}" --jobs $(nproc) --output-type pdfa "{ocr_in}" "{raw_pdf_file}"', shell=True)
+    _, tempOCRFilePath = tempfile.mkstemp()
+    subprocess.run(f'ocrmypdf -l {args.language} --title "{title}" --jobs $(nproc) --output-type pdfa "{pdfRawFilePath}" "{tempOCRFilePath}"', shell=True)
 else:
     ebook_output_ocr = args.output / f'{args.isbn}.pdf'
     print('Skipping OCR...')
@@ -375,7 +377,7 @@ else:
 #######################################
 # Add metadata (what we have)
 print('Adding metadata...')
-file_in = open(raw_pdf_file, 'rb')
+file_in = open(tempOCRFilePath, 'rb')
 pdf_reader = PdfReader(file_in)
 pdf_merger = PdfMerger()
 pdf_merger.append(file_in)
@@ -392,12 +394,7 @@ else:
 _, tmpfile = tempfile.mkstemp()
 pdf_merger.write(open(tmpfile, 'wb'))
 
-romans_end = 0
-for p in existing_page_files:
-    if isinstance(p, str):
-        romans_end += 1
-
-if romans_end > 0:
+if non_number_pages > 0:
     print('Renumbering pages...')
     reader = pdfrw_reader(tmpfile)
     labels = PageLabels.from_pdf(reader)
@@ -405,7 +402,7 @@ if romans_end > 0:
     roman_labels = PageLabelScheme(
         startpage=0,
         style='none',
-        prefix='Cover',
+        prefix='Capa',
         firstpagenum=1
     )
     labels.append(roman_labels)
@@ -418,7 +415,7 @@ if romans_end > 0:
     labels.append(roman_labels)
 
     normal_labels = PageLabelScheme(
-        startpage=romans_end,
+        startpage=non_number_pages,
         style='arabic',
         firstpagenum=1
     )
