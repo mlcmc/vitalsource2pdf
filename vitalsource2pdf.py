@@ -44,7 +44,7 @@ args = parser.parse_args()
 args.output = Path(args.output)
 args.output.mkdir(exist_ok=True, parents=True)
 # ebook_output = args.output / f'{args.isbn}.pdf'
-ebook_files = args.output / args.isbn
+ebook_files = Path(args.output / args.isbn)
 ebook_files.mkdir(exist_ok=True, parents=True)
 
 book_info = {}
