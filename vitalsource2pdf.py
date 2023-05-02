@@ -49,6 +49,7 @@ ebook_files.mkdir(exist_ok=True, parents=True)
 
 book_info = {}
 non_number_pages = 0
+front_pages = 0
 
 libraryLoginPage = 'https://bookshelf.vitalsource.com'
 libraryMosaic = 'bookshelf.vitalsource.com'
@@ -196,7 +197,6 @@ if not args.skip_scrape or args.only_scrape_metadata:
                         int(page)
                     except ValueError:
                         total_pages += 1
-                        non_number_pages += 1
                         bar.write(f'Non-number page {page}, increasing page count by 1 to: {total_pages}')
                         bar.total = total_pages
                         bar.refresh()
@@ -328,10 +328,11 @@ print('Checking for blank pages...')
 
 pageFilesArr = move_romans_to_front(roman_sort_with_ints([try_convert_int(str(x.stem)) for x in list(ebook_files.iterdir())]))
 
-if non_number_pages == 0:  # We might not have scraped so this number needs to be updated.
-    for item in pageFilesArr:
-        if isinstance(try_convert_int(item), str):
-            non_number_pages += 1
+for item in pageFilesArr:
+    if isinstance(try_convert_int(item), str):
+        non_number_pages += 1
+    if item == 'Capa' or item == 'Frontcover':
+        front_pages += 1
 
 """for page in tqdm(iterable=pageFilesArr):
     page_i = try_convert_int(page)
