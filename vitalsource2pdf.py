@@ -94,7 +94,7 @@ if not args.skip_scrape or args.only_scrape_metadata:
     }
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), chrome_options=chrome_options, seleniumwire_options=seleniumwire_options)
     
-    driver.get(f'{libraryLoginPage}')
+    driver.get({libraryLoginPage})
     input('Press ENTER once logged in...')
     
     driver.maximize_window()
