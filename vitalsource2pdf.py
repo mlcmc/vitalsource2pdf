@@ -366,37 +366,38 @@ else:
 
 #######################################
 # OCR subroutines
+_, tempfilePath = tempfile.mkstemp()
 if not args.skip_ocr:
     print('Running OCR...')
-    _, tempOCRFilePath = tempfile.mkstemp()
-    subprocess.run(f'ocrmypdf -l {args.language} --title "{title}" --jobs $(nproc) --output-type pdfa "{pdfRawFilePath}" "{tempOCRFilePath}"', shell=True)
+    subprocess.run(f'ocrmypdf -l {args.language} --title "{title}" --jobs $(nproc) --output-type pdfa "{pdfRawFilePath}" "{tempfilePath}"', shell=True)
 else:
-    ebook_output_ocr = args.output / f'{args.isbn}.pdf'
     print('Skipping OCR...')
 
 #######################################
 # Add metadata (what we have)
 print('Adding metadata...')
-file_in = open(tempOCRFilePath, 'rb')
-pdf_reader = PdfReader(file_in)
-pdf_merger = PdfMerger()
-pdf_merger.append(file_in)
+pdfMergerObj = PdfMerger()
+if not args.skip_ocr:
+    pdfMergerObj.append(tempfilePath)
+else:
+    pdfMergerObj.append(pdfRawFilePath)
 
-pdf_merger.add_metadata({'/Author': author, '/Title': title, '/Creator': f'ISBN: {args.isbn}'})
+pdfMergerObj.add_metadata({'/Author': author, '/Title': title, '/Creator': f'ISBN: {args.isbn}'})
 
 if 'toc' in book_info.keys():
     print('Creating TOC...')
     for item in book_info['toc']:
-        pdf_merger.add_outline_item(item['title'], int(item['cfi'].strip('/')) - 1)
+        pdfMergerObj.add_outline_item(item['title'], int(item['cfi'].strip('/')) - 1)
+    # TODO add nested items
 else:
     print('Not creating TOC...')
 
-_, tmpfile = tempfile.mkstemp()
-pdf_merger.write(open(tmpfile, 'wb'))
+pdfMergerObj.write(tempfilePath)
+pdfMergerObj.close()
 
 if non_number_pages > 0:
     print('Renumbering pages...')
-    reader = pdfrw_reader(tmpfile)
+    reader = pdfrw_reader(tempfilePath)
     labels = PageLabels.from_pdf(reader)
 
     roman_labels = PageLabelScheme(
@@ -426,10 +427,10 @@ if non_number_pages > 0:
     writer.trailer = reader
     writer.write(args.output / f'{title}.pdf')
 else:
-    shutil.move(tmpfile, args.output / f'{title}.pdf')
+    shutil.move(tempfilePath, args.output / f'{title}.pdf')
 
 try:
-    os.remove(tmpfile)
+    os.remove(tempfilePath)
 except:
     pass
 
