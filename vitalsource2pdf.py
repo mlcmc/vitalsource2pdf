@@ -333,17 +333,34 @@ for item in pageFilesArr:
     if item == 'Capa' or item == 'Frontcover':
         front_pages += 1
 
-"""for page in tqdm(iterable=pageFilesArr):
-    page_i = try_convert_int(page)
-    if isinstance(page_i, int) and page_i > 0:
-        page_i += non_number_pages
-        last_page_i = try_convert_int(pageFilesArr[len(pageFilesArr) - 1]) # problem: maybe there isnt the nth element
-        if isinstance(last_page_i, int):
-            last_page_i += non_number_pages
-            if last_page_i != page_i - 1:
-                img = Image.new('RGB', (2000, 2588), (255, 255, 255))
-                img.save(ebook_files / f'{int(page) - 1}.jpg')
-                tqdm.write(f'Created blank image for page {int(page) - 1}.')"""
+# Create list with exiting files numbers
+existing_numbers = []
+for file in pageFilesArr:
+    file_name = str(file)
+    if file_name.isdigit():
+        existing_numbers.append(int(file_name))
+    elif file_name.isalpha():
+        # If the name is a word (like "Front"), consider as 1
+        existing_numbers.append(1)
+    else:
+        # If not number or word, ignore it
+        continue
+
+# Detect gaps between numbered files
+gaps = []
+for i in range(len(existing_numbers) - 1):
+    if existing_numbers[i+1] - existing_numbers[i] > 1:
+        gap_start = existing_numbers[i] + 1
+        gap_end = existing_numbers[i+1] - 1
+        gaps.append((gap_start, gap_end))
+
+# Create white images to fill gaps
+for gap in gaps:
+    for i in range(gap[0], gap[1]+1):
+        img = Image.new('RGB', (2000, 2588), (255, 255, 255))
+        file_name = str(i) + '.jpg'
+        img.save(ebook_files / file_name)
+        print(f'Created blank image for page {str(i)}.')
 
 ################################
 # Build PDF from images
