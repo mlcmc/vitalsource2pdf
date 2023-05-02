@@ -400,27 +400,29 @@ if non_number_pages > 0:
     reader = pdfrw_reader(tempfilePath)
     labels = PageLabels.from_pdf(reader)
 
-    roman_labels = PageLabelScheme(
-        startpage=0,
-        style='none',
-        prefix='Capa',
-        firstpagenum=1
-    )
-    labels.append(roman_labels)
+    if front_pages > 0:
+        front_labels = PageLabelScheme(
+            startpage=1,
+            style='none',
+            prefix='Capa',
+            firstpagenum=1
+        )
+        labels.append(front_labels)
 
-    roman_labels = PageLabelScheme(
-        startpage=1,
-        style='roman lowercase',
-        firstpagenum=1
-    )
-    labels.append(roman_labels)
+    if non_number_pages > 0:
+        roman_labels = PageLabelScheme(
+            startpage=front_pages+1,
+            style='roman lowercase',
+            firstpagenum=1
+        )
+        labels.append(roman_labels)
 
-    normal_labels = PageLabelScheme(
-        startpage=non_number_pages,
+    arabic_labels = PageLabelScheme(
+        startpage=non_number_pages+1,
         style='arabic',
         firstpagenum=1
     )
-    labels.append(normal_labels)
+    labels.append(arabic_labels)
 
     labels.write(reader)
     writer = pdfrw_writer()
