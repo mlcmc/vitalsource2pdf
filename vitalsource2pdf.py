@@ -74,11 +74,10 @@ def get_num_pages():
 
 def load_book_page(page_id):
     driver.get(f'https://{libraryMosaic}/reader/books/{args.isbn}/pageid/{page_id}')
+    get_num_pages()  # Wait for the page to load
     # Wait for the page loader animation to disappear
     while len(driver.find_elements(By.CLASS_NAME, "sc-AjmGg dDNaMw")):
         time.sleep(1)
-    get_num_pages()  # Wait for the page to load
-
 
 if not args.skip_scrape or args.only_scrape_metadata:
     chrome_options = webdriver.ChromeOptions()
