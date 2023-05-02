@@ -272,7 +272,7 @@ if not args.skip_scrape or args.only_scrape_metadata:
                 del driver.requests
                 time.sleep(args.delay / 2)
                 driver.get(f'{base_url.strip("/")}/2000')
-                time.sleep(args.delay / 2)
+                time.sleep(args.delay)
                 retry_delay = 5
                 img_data = None
                 failed = True
@@ -280,8 +280,8 @@ if not args.skip_scrape or args.only_scrape_metadata:
                     if request.url.startswith(f'https://jigsaw.{libraryJigsaw}/books/{args.isbn}/images/'):
                         if (request.response and request.response.status_code == 428):
                             print('reCAPTCHA required.')
+                            load_book_page(0)
                             input('Press ENTER after solving it.')
-                            time.sleep(1)
                         else:
                             img_data = request.response.body
                             failed = False
@@ -394,6 +394,7 @@ else:
 
 pdfMergerObj.write(tempfilePath)
 pdfMergerObj.close()
+del pdfMergerObj
 
 if non_number_pages > 0:
     print('Renumbering pages...')
