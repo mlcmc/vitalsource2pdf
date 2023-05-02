@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 import time
 import pickle
+import roman
 from pathlib import Path
 
 import img2pdf
