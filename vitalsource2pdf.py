@@ -330,7 +330,7 @@ def main():
     parser.add_argument('--chrome-exe', default=None, type=str, help='Path to the Chrome executable. Leave blank to auto-detect.')
     parser.add_argument('--wsl', action='store_true', help="Use Chrome settings for use under WSL.")
     parser.add_argument('--disable-web-security', action='store_true', help="If pages aren't loading then you can try disabling CORS protections.")
-    parser.add_argument('--language', default='por', help='OCR language. Default: "eng"')
+    parser.add_argument('--language', default='eng', help='OCR language. Default: "eng"')
     parser.add_argument('--skip-scrape', action='store_true', help="Don't scrape anything, just re-build the PDF from existing files.")
     parser.add_argument('--only-scrape-metadata', action='store_true', help="Similar to --skip-scrape, but only scrape the metadata.")
     parser.add_argument('--skip-ocr', action='store_true', help="Don't do any OCR.")
